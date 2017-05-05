@@ -34,6 +34,15 @@ class Spider
      * @ORM\Column(name="site", type="string")
      */
     private $site;
+    
+    /**
+     * 站点的主域
+     *
+     * @var
+     *
+     * @ORM\Column(name="domain", type="string", options={"default":""})
+     */
+    private $domain = '';
 
     /**
      * @var \DateTime
@@ -150,5 +159,21 @@ class Spider
     public function getUpdateTime()
     {
         return $this->updateTime;
+    }
+    
+    /**
+     * @return mixed
+     */
+    public function getDomain()
+    {
+        return $this->domain;
+    }
+    
+    /**
+     * @param mixed $domain
+     */
+    public function setDomain($domain)
+    {
+        $this->domain = $domain;
     }
 }

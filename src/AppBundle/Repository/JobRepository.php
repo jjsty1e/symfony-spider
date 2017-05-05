@@ -2,6 +2,7 @@
 
 namespace AppBundle\Repository;
 
+use AppBundle\Entity\Job;
 use Doctrine\ORM\EntityRepository;
 
 /**
@@ -12,4 +13,61 @@ use Doctrine\ORM\EntityRepository;
  */
 class JobRepository extends EntityRepository
 {
+    /**
+     * 创建一个job
+     *
+     * @param $spiderId
+     * @param $link
+     */
+    public function createJob($spiderId, $link)
+    {
+        $job = new Job();
+        
+        $job->setSpiderId($spiderId);
+        $job->setLink($link);
+        $job->setRetry(0);
+        $job->setStatus(0);
+        $job->setFailed(false);
+        $job->setCategoryId(0);
+        
+        $nowDate = new \DateTime();
+        
+        $job->setUpdateTime($nowDate);
+        $job->setCreateTime($nowDate);
+        
+        $this->getEntityManager()->persist($job);
+        $this->getEntityManager()->flush();
+    }
+    
+    /**
+     * 获取一个没有执行过的job
+     *
+     * @param int $spiderId
+     * @return Job|null
+     */
+    public function getOneUnProcessJobWithLock($spiderId)
+    {
+        return $this->createQueryBuilder('p')
+            ->select('p')
+            ->where('p.status < 2')
+            ->andWhere('p.retry < 3')
+            ->andWhere('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->setLockMode(4)
+            ->getOneOrNullResult();
+    }
+    
+    /**
+     * 完成一个job
+     *
+     * @param Job $job
+     */
+    public function finishJob(Job $job)
+    {
+         $job->setStatus(2);
+         $job->setUpdateTime(new \DateTime());
+         
+         $this->getEntityManager()->flush();
+    }
 }
