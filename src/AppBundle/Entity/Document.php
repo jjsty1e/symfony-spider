@@ -66,7 +66,7 @@ class Document
     /**
      * @var array
      *
-     * @ORM\Column(name="extra", type="json_array")
+     * @ORM\Column(name="extra", type="json_array", nullable=true)
      */
     private $extra;
 

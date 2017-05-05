@@ -43,15 +43,17 @@ class JobRepository extends EntityRepository
      * 获取一个没有执行过的job
      *
      * @param int $spiderId
+     * @param $query
      * @return Job|null
      */
-    public function getOneUnProcessJobWithLock($spiderId)
+    public function getOneUnProcessJobWithLock($spiderId, $query)
     {
         return $this->createQueryBuilder('p')
             ->select('p')
             ->where('p.status < 2')
             ->andWhere('p.retry < 3')
             ->andWhere('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
+            ->andWhere('p.link like :query')->setParameter('query', "%$query%")
             ->setMaxResults(1)
             ->getQuery()
             ->setLockMode(4)

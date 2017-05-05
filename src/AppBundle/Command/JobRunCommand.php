@@ -12,11 +12,14 @@ namespace AppBundle\Command;
 use AppBundle\Entity\Job;
 use Doctrine\Bundle\DoctrineBundle\Registry;
 use Doctrine\ORM\EntityManager;
+use GuzzleHttp\Client;
 use QL\QueryList;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * 启动一个任务
@@ -28,6 +31,11 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class JobRunCommand extends ContainerAwareCommand
 {
+    /**
+     * @var SymfonyStyle $io
+     */
+    private $io;
+    
     protected function configure()
     {
         $this->setName('job:run');
@@ -44,6 +52,10 @@ class JobRunCommand extends ContainerAwareCommand
     
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->io = $io = new SymfonyStyle($input, $output);
+        
+        //$io->note('[JOB] - created new job');
+        
         $spiderId = $input->getArgument('spiderId');
         
         if (!$spiderId) {
@@ -61,11 +73,8 @@ class JobRunCommand extends ContainerAwareCommand
         try {
             $entityManager->beginTransaction();
 
-            $job = $jobRepository->getOneUnProcessJobWithLock($spiderId);
-            echo "==================\n";
-            echo $job->getId();
-            echo "==================\n";
-
+            $job = $jobRepository->getOneUnProcessJobWithLock($spiderId, 'bang/info');
+    
             if (!$job) {
                 throw new \Exception('no more unProcess job');
             }
@@ -87,10 +96,6 @@ class JobRunCommand extends ContainerAwareCommand
             $entityManager->flush();
             
             $entityManager->commit(); // 这些数据不需要事务
-    
-            echo "==================status:\n";
-            echo $job->getStatus();
-            echo "==================\n";
             
             $entityManager->beginTransaction();
             
@@ -114,6 +119,8 @@ class JobRunCommand extends ContainerAwareCommand
                     $entityManager->commit();
                     return;
                 }
+    
+                $this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
                 
                 $title = $documentResource['title'];
                 $content = $documentResource['content'];
@@ -143,6 +150,7 @@ class JobRunCommand extends ContainerAwareCommand
     protected function crawl(Job $job)
     {
         $spiderRepository = $this->getDoctrine()->getRepository('AppBundle:Spider');
+        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
         
         $spider = $spiderRepository->find($job->getSpiderId());
         
@@ -158,15 +166,19 @@ class JobRunCommand extends ContainerAwareCommand
             'title' => ['h1', 'text'],
             'date' => ['.f-l.article-tips', 'text'],
             'desc' => ['.short-article', 'text'],
+            'meta' => ['.f-l.article-tips', 'text'],
             'content' => ['.main-article.clr', 'html']
         ];
         
-        // 先获取整个 文档，然后解析出文档数据，然后得到html中潜在的job，和潜在的category，并将这三种数据存放到数据库中
+        $client = new Client();
+        
+        $response = $client->get($job->getLink());
+        $contentHtml = $response->getBody()->getContents();
         
         /**
          * @var QueryList $ql
          */
-        $ql = QueryList::Query($job->getLink(), $linkRule);
+        $ql = QueryList::Query($contentHtml, $linkRule);
 
         $data = $ql->getData();
 
@@ -187,26 +199,22 @@ class JobRunCommand extends ContainerAwareCommand
             }
         }
         
-        $ql = QueryList::Query($job->getLink(), $documentRule);
+        $ql = QueryList::Query($contentHtml, $documentRule);
         
         $originDoc = $ql->getData();
-        $document = [];
         
-        if (isset($originDoc[0])) {
-            $doc = $originDoc[0];
-            
-            print_r($doc);
-            
-            if (!empty($doc['title']) && !empty($doc['content'])) {
-                $document = $doc;
-            }
+        if (isset($originDoc[0]) && !empty($originDoc[0]['title']) && !empty($originDoc[0]['content'])) {
+            $document = $originDoc[0];
         } else {
-            echo "====================NO DOCUMENT:\n";
+            $this->io->note(sprintf('[JOB] - no document on this page:%s', $job->getLink()));
+            echo $contentHtml;
+            throw new NotFoundHttpException('no document, exit');
         }
         
-        echo "====================links:\n";
-       // print_r($links);
+        if ($response->getStatusCode() == 200) {
+            $jobRepository->finishJob($job);
+        }
         
-        return [[], $document];
+        return [$links, $document];
     }
 }
