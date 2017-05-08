@@ -46,18 +46,41 @@ class JobRepository extends EntityRepository
      * @param $query
      * @return Job|null
      */
-    public function getOneUnProcessJobWithLock($spiderId, $query)
+    public function getOneUnProcessJob($spiderId, $query)
     {
         return $this->createQueryBuilder('p')
             ->select('p')
-            ->where('p.status < 2')
+            ->where('p.status = 0')
             ->andWhere('p.retry < 3')
             ->andWhere('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
             ->andWhere('p.link like :query')->setParameter('query', "%$query%")
             ->setMaxResults(1)
             ->getQuery()
-            ->setLockMode(4)
             ->getOneOrNullResult();
+    }
+
+    /**
+     * 获取所有没有执行过的job id
+     *
+     * @param $spiderId
+     * @param $query
+     * @return int
+     */
+    public function getAllUnProcessJobIds($spiderId, $query = '')
+    {
+        $queryBuilder = $this->createQueryBuilder('p')
+            ->select('p.id')
+            ->where('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
+            ->andWhere('p.status = 0')
+            ->andWhere('p.retry < 3');
+
+        if ($query) {
+            $queryBuilder->andWhere('p.link like :query')->setParameter('query', "%$query%");
+        }
+
+        $res = $queryBuilder->getQuery()->getArrayResult();
+
+        return array_column($res, 'id');
     }
     
     /**
@@ -71,5 +94,13 @@ class JobRepository extends EntityRepository
          $job->setUpdateTime(new \DateTime());
          
          $this->getEntityManager()->flush();
+    }
+
+    public function updateJobStatus(Job $job, $status)
+    {
+        $job->setStatus($status);
+        $job->setUpdateTime(new \DateTime());
+
+        $this->getEntityManager()->flush();
     }
 }

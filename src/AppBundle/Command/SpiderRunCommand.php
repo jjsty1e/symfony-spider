@@ -9,7 +9,7 @@
 
 namespace AppBundle\Command;
 
-use Symfony\Component\Console\Command\Command;
+use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -24,14 +24,16 @@ use Symfony\Component\Process\Process;
  * Class SpiderRunCommand
  * @package AppBundle\Command
  */
-class SpiderRunCommand extends Command
+class SpiderRunCommand extends ContainerAwareCommand
 {
     /**
      * @var Process[] 任务集合
      */
     private $jobs = [];
     
-    private $jobCount = 10;
+    private $jobCount = 3;
+
+    private $spiderId = 1;
     
     /**
      * job的超时时间，0表示不设置超时
@@ -52,8 +54,11 @@ class SpiderRunCommand extends Command
         }
         
         $io = new SymfonyStyle($input, $output);
+
+        list($jobQueue, $documentQueue) = $this->startQueue($this->spiderId);
         
         for ($i = 0; $i < $this->jobCount; $i++) {
+
             $process = $this->jobs[$i];
             $break = false;
             
@@ -69,9 +74,16 @@ class SpiderRunCommand extends Command
                 }
             }
     
+            echo $jobQueue->getIncrementalOutput();
+            echo $jobQueue->getIncrementalErrorOutput();
+
+            echo $documentQueue->getIncrementalOutput();
+            echo $documentQueue->getIncrementalErrorOutput();
+
             echo $process->getIncrementalOutput();
-            echo $process->getErrorOutput();
-            
+            echo $process->getIncrementalErrorOutput();
+
+
             if (!$break) {
                 if (!$process->isRunning()) {
                     //$io->warning(sprintf('PROCESS:%S ended!', $i));
@@ -82,6 +94,17 @@ class SpiderRunCommand extends Command
             }
             
             if ($i === $this->jobCount - 1) {
+
+                if (!$jobQueue->isRunning() or !$documentQueue->isRunning()) {
+                    echo $jobQueue->getIncrementalErrorOutput();
+                    echo $documentQueue->getIncrementalErrorOutput();
+
+                    $io->warning('queue is not running ,restart!');
+                    $jobQueue->stop();
+                    $documentQueue->stop();
+                    list($jobQueue, $documentQueue) = $this->startQueue($this->spiderId);
+                }
+
                 $i = -1;
                 sleep(1);
             }
@@ -93,7 +116,7 @@ class SpiderRunCommand extends Command
      */
     protected function createOneJob()
     {
-        $process = new Process('php app/console job:run 1');
+        $process = new Process("php app/console job:run {$this->spiderId}");
         
         if ($this->timeout) {
             $process->setTimeout($this->timeout);
@@ -102,5 +125,23 @@ class SpiderRunCommand extends Command
         $process->start();
         
         return $process;
+    }
+
+    /**
+     *
+     * @param int $spiderId
+     * @return Process[]
+     */
+    protected function startQueue($spiderId)
+    {
+        $queueVersion = time() . rand(1000, 9999);
+        // 检查队列状态
+        $jobQueue = new Process("php app/console queue:run job --spiderId {$spiderId}  --queueVersion {$queueVersion}");
+        $documentQueue = new Process("php app/console queue:run document --spiderId {$spiderId} --queueVersion {$queueVersion}");
+
+        $jobQueue->start();
+        $documentQueue->start();
+
+        return [$jobQueue, $documentQueue];
     }
 }

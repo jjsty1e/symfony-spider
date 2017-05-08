@@ -11,7 +11,6 @@ namespace AppBundle\Command;
 
 use AppBundle\Entity\Job;
 use Doctrine\Bundle\DoctrineBundle\Registry;
-use Doctrine\ORM\EntityManager;
 use GuzzleHttp\Client;
 use QL\QueryList;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
@@ -24,6 +23,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * 启动一个任务
  *
+ * 作用：从redis中得到一个jobId,并且爬取这个job，如果爬取成功，将得到的数据存入到redis中（只后由任务队列执行入库操作）
+ *
  * 每个任务会检测当前是否有job在获取category页面，如果没有，那么当前这个job会当作category-fetcher
  *
  * Class JobRunCommand
@@ -35,6 +36,11 @@ class JobRunCommand extends ContainerAwareCommand
      * @var SymfonyStyle $io
      */
     private $io;
+
+    /**
+     * @var int 当前的爬虫id
+     */
+    private $spiderId;
     
     protected function configure()
     {
@@ -53,90 +59,89 @@ class JobRunCommand extends ContainerAwareCommand
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->io = $io = new SymfonyStyle($input, $output);
-        
-        //$io->note('[JOB] - created new job');
-        
-        $spiderId = $input->getArgument('spiderId');
-        
-        if (!$spiderId) {
-            throw new InvalidArgumentException('argument:spiderId error!');
-        }
-        
-        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
-        $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
-        
-        /**
-         * @var EntityManager $entityManager
-         */
-        $entityManager = $this->getDoctrine()->getManager();
 
-        try {
-            $entityManager->beginTransaction();
+        $this->spiderId = $spiderId = $input->getArgument('spiderId');
+        $spiderService = $this->getContainer()->get('app.spider.service');
 
-            $job = $jobRepository->getOneUnProcessJobWithLock($spiderId, 'bang/info');
-    
-            if (!$job) {
-                throw new \Exception('no more unProcess job');
+        $redis = $this->getContainer()->get('snc_redis.cache');
+
+        while (true) {
+            if ($redis->scard('spider:waiting-job') == 0) {
+                $spiderService->createWaitingJobSet($this->spiderId);
             }
-    
+
+            //$io->note('[JOB] - created new job');
+
+            if (!$spiderId) {
+                throw new InvalidArgumentException('argument:spiderId error!');
+            }
+
+            $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
+            $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
+
+            do {
+                $jobId = $redis->spop('spider:waiting-job');
+            } while ($redis->sismember('spider:running-job', $jobId));
+
+            $redisRet = $redis->sadd('spider:running-job', [$jobId]);
+
             /**
-             * 任务已经有了对应的文档
+             * 在redis中保存当前job的状态，以避免其他进程重复获取这个id
+             */
+
+            if (!$redisRet) {
+                throw new \Exception(sprintf('[JOB] - job:%s is running', $jobId));
+            }
+
+            $job = $jobRepository->find($jobId);
+
+            if (!$job) {
+                throw new \Exception('none exist job: ' . $jobId);
+            }
+
+            $jobRepository->updateJobStatus($job, 1);
+
+            /**
+             * 任务已经有了对应的文档, 避免并发异常
              */
             if ($documentRepository->getDocumentByJobId($job->getId())) {
-                $jobRepository->finishJob($job);
-                
-                $entityManager->commit();
+                $spiderService->finishJob($jobId);
                 return;
             }
-    
-            $job->setStatus(1);
-            $job->setRetry($job->getRetry() + 1);
-            $job->setUpdateTime(new \DateTime());
-            
-            $entityManager->flush();
-            
-            $entityManager->commit(); // 这些数据不需要事务
-            
-            $entityManager->beginTransaction();
-            
+
             list($links, $documentResource) = $this->crawl($job);
-            
-            foreach ($links as $link) {
-                if (!$jobRepository->findOneBy(['link' => $link])) {
-                    $jobRepository->createJob($spiderId, $link);
-                }
+
+            // push link job to redis queue
+            if ($links) {
+                $validLinks = array_filter($links, function ($value) use ($jobRepository) {
+                    return (bool) $jobRepository->findOneBy(['link' => $value]);
+                });
+
+                $redisJobs = array_map(function ($value) use ($spiderId){
+                    return json_encode([
+                        'spiderId' => $spiderId,
+                        'link' => $value
+                    ]);
+                }, $validLinks);
+
+                $spiderService->pushRedisJob($redisJobs);
             }
-            
+
+            // push document to redis queue
             if ($documentResource) {
                 $document = $documentRepository->findOneBy(['title' => $documentResource['title']]);
-    
+
                 /**
                  * 已经存在相同的文档
                  */
                 if ($document) {
-                    $jobRepository->finishJob($job);
-    
-                    $entityManager->commit();
-                    return;
+                    $spiderService->finishJob($jobId);
                 }
-    
+
                 $this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
-                
-                $title = $documentResource['title'];
-                $content = $documentResource['content'];
-                $meta = $documentResource['meta'];
-                $desc = $documentResource['desc'];
-                
-                $documentRepository->createDocument($title, $job->getId(), $meta, $job->getLink(), $content, $desc);
-    
-                $jobRepository->finishJob($job);
+
+                $spiderService->pushRedisDocument($documentResource);
             }
-    
-            $entityManager->commit();
-            
-        } catch (\Exception $exception) {
-            $entityManager->rollback();
-            throw $exception;
         }
     }
     
@@ -150,13 +155,13 @@ class JobRunCommand extends ContainerAwareCommand
     protected function crawl(Job $job)
     {
         $spiderRepository = $this->getDoctrine()->getRepository('AppBundle:Spider');
-        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
-        
         $spider = $spiderRepository->find($job->getSpiderId());
         
         if ($job->getStatus() !== 1) {
             throw new \Exception('Job:' . $job->getId() . ' is not running');
         }
+
+        $this->io->note('now crawl link: ' . $job->getLink());
         
         $linkRule = [
             'link' => ['a', 'href']
@@ -172,7 +177,7 @@ class JobRunCommand extends ContainerAwareCommand
         
         $client = new Client();
         
-        $response = $client->get($job->getLink());
+        $response = $client->get($this->parseJobLink($job));
         $contentHtml = $response->getBody()->getContents();
         
         /**
@@ -205,16 +210,35 @@ class JobRunCommand extends ContainerAwareCommand
         
         if (isset($originDoc[0]) && !empty($originDoc[0]['title']) && !empty($originDoc[0]['content'])) {
             $document = $originDoc[0];
+
+            if (empty($document['meta'])) {
+                $document['meta'] = '';
+            }
+
+            if (empty($document['desc'])) {
+                $document['desc'] = '';
+            }
+
+            $document['date'] = '';
+            $document['jobId'] = $job->getId();
+            $document['link'] = $job->getLink();
         } else {
-            $this->io->note(sprintf('[JOB] - no document on this page:%s', $job->getLink()));
-            echo $contentHtml;
+            $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
             throw new NotFoundHttpException('no document, exit');
         }
         
-        if ($response->getStatusCode() == 200) {
-            $jobRepository->finishJob($job);
-        }
-        
         return [$links, $document];
+    }
+
+    /**
+     * 处理链接
+     *
+     * @param Job $job
+     * @return mixed|string
+     */
+    protected function parseJobLink(Job $job)
+    {
+        $res = preg_replace('#(-p\d)?\.html$#', '-p0.html',$job->getLink());
+        return $res ? $res : $job->getLink();
     }
 }

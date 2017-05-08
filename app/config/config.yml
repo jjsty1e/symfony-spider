@@ -64,3 +64,22 @@ swiftmailer:
     username: '%mailer_user%'
     password: '%mailer_password%'
     spool: { type: memory }
+
+snc_redis:
+    clients:
+        cache:
+            type: predis
+            alias: cache
+            dsn: "%snc_dsn%"
+            logging: true
+    doctrine:
+        metadata_cache:
+            client: cache
+            entity_manager: default
+            document_manager: default
+        result_cache:
+            client: cache
+            entity_manager: [default, read]
+        query_cache:
+            client: cache
+            entity_manager: default
