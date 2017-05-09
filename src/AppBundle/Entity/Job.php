@@ -3,11 +3,15 @@
 namespace AppBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\Mapping\Index;
 
 /**
  * Job
  *
- * @ORM\Table(name="job")
+ * @ORM\Table(name="job",
+ *      indexes={
+ *          @Index(name="link_idx", columns={"link"})
+ *      })
  * @ORM\Entity(repositoryClass="AppBundle\Repository\JobRepository")
  */
 class Job

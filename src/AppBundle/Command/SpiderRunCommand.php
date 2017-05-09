@@ -31,7 +31,7 @@ class SpiderRunCommand extends ContainerAwareCommand
      */
     private $jobs = [];
     
-    private $jobCount = 3;
+    private $jobCount = 4;
 
     private $spiderId = 1;
     

@@ -9,6 +9,7 @@
 
 namespace AppBundle\Command;
 
+use AppBundle\Entity\Document;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -83,10 +84,8 @@ class QueueRunCommand extends ContainerAwareCommand
         $this->io->success('queue:job is running!');
 
         while (1) {
-
-            // 如果发现版本被修改，则退出
             if ($redis->get('spider:queue-version') != $this->queueVersion) {
-                $this->io->warning('queue version changed!: ' . $redis->get('spider:queue-version') . '|' . $this->queueVersion);
+                $this->io->warning('queue version changed!');
                 return ;
             }
 
@@ -108,7 +107,7 @@ class QueueRunCommand extends ContainerAwareCommand
                 continue;
             }
 
-            $jobRepository->createJob($jobData['spiderId'], $jobData['link']);
+            $job = $jobRepository->createJob($jobData['spiderId'], $jobData['link']);
             $spiderService->refreshRedisWaitingJobs($spiderId, $job->getId());
 
             sleep(1);
@@ -123,7 +122,6 @@ class QueueRunCommand extends ContainerAwareCommand
         $this->io->success('queue:document is running!');
 
         while (1) {
-
             // 如果发现版本被修改，则退出
             if ($redis->get('spider:queue-version') != $this->queueVersion) {
                 $this->io->warning('queue version changed!');
@@ -156,11 +154,14 @@ class QueueRunCommand extends ContainerAwareCommand
                 continue;
             }
 
+            /**
+             * @var Document $document
+             */
             $document = $documentRepository->findOneBy(['title' => $title]);
 
             if ($document) {
                 $spiderService->finishJob($jobId);
-                $this->io->warning('the same document in db!');
+                //$this->io->warning('the same document in db! : ' . $document->getLink() . '. new link: ' . $link);
                 continue;
             }
 
@@ -168,7 +169,7 @@ class QueueRunCommand extends ContainerAwareCommand
 
             $spiderService->finishJob($jobId);
 
-            $this->io->success('Created new document: ' . $link);
+            //$this->io->success('Created new document: ' . $link);
         }
     }
 }

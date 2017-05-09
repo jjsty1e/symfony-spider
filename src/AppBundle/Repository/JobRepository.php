@@ -18,6 +18,7 @@ class JobRepository extends EntityRepository
      *
      * @param $spiderId
      * @param $link
+     * @return Job
      */
     public function createJob($spiderId, $link)
     {
@@ -37,6 +38,8 @@ class JobRepository extends EntityRepository
         
         $this->getEntityManager()->persist($job);
         $this->getEntityManager()->flush();
+
+        return $job;
     }
     
     /**

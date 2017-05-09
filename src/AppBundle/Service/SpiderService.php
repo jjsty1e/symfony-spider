@@ -70,14 +70,18 @@ class SpiderService
     {
         $redis = $this->container->get('snc_redis.cache');
 
-        $redis->lpush('spider:document-queue', json_encode($jobData));
+        if (!empty($jobData)) {
+            $redis->lpush('spider:document-queue', json_encode($jobData));
+        }
     }
 
     public function pushRedisJob(array $jobs)
     {
         $redis = $this->container->get('snc_redis.cache');
 
-        $redis->lpush('spider:job-queue', $jobs);
+        if (!empty($jobs)) {
+            $redis->lpush('spider:job-queue', $jobs);
+        }
     }
 
     /**

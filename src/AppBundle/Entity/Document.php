@@ -3,11 +3,16 @@
 namespace AppBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\Mapping\Index;
 
 /**
  * Document
  *
- * @ORM\Table(name="document")
+ * @ORM\Table(name="document",
+ *      indexes={
+ *          @Index(name="link_idx", columns={"link"}),
+ *          @Index(name="job_id_idx", columns={"jobId"})
+ *      })
  * @ORM\Entity(repositoryClass="AppBundle\Repository\DocumentRepository")
  */
 class Document

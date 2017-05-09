@@ -12,13 +12,13 @@ namespace AppBundle\Command;
 use AppBundle\Entity\Job;
 use Doctrine\Bundle\DoctrineBundle\Registry;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use QL\QueryList;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * 启动一个任务
@@ -62,7 +62,8 @@ class JobRunCommand extends ContainerAwareCommand
 
         $this->spiderId = $spiderId = $input->getArgument('spiderId');
         $spiderService = $this->getContainer()->get('app.spider.service');
-
+        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
+        $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
         $redis = $this->getContainer()->get('snc_redis.cache');
 
         while (true) {
@@ -76,8 +77,6 @@ class JobRunCommand extends ContainerAwareCommand
                 throw new InvalidArgumentException('argument:spiderId error!');
             }
 
-            $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
-            $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
 
             do {
                 $jobId = $redis->spop('spider:waiting-job');
@@ -104,7 +103,7 @@ class JobRunCommand extends ContainerAwareCommand
             /**
              * 任务已经有了对应的文档, 避免并发异常
              */
-            if ($documentRepository->getDocumentByJobId($job->getId())) {
+            if ($documentRepository->getDocumentByLink($job->getLink())) {
                 $spiderService->finishJob($jobId);
                 return;
             }
@@ -114,7 +113,7 @@ class JobRunCommand extends ContainerAwareCommand
             // push link job to redis queue
             if ($links) {
                 $validLinks = array_filter($links, function ($value) use ($jobRepository) {
-                    return (bool) $jobRepository->findOneBy(['link' => $value]);
+                    return !(bool) $jobRepository->findOneBy(['link' => $value]);
                 });
 
                 $redisJobs = array_map(function ($value) use ($spiderId){
@@ -138,7 +137,7 @@ class JobRunCommand extends ContainerAwareCommand
                     $spiderService->finishJob($jobId);
                 }
 
-                $this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
+                //$this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
 
                 $spiderService->pushRedisDocument($documentResource);
             }
@@ -161,7 +160,7 @@ class JobRunCommand extends ContainerAwareCommand
             throw new \Exception('Job:' . $job->getId() . ' is not running');
         }
 
-        $this->io->note('now crawl link: ' . $job->getLink());
+        //$this->io->note('now crawl link: ' . $job->getLink());
         
         $linkRule = [
             'link' => ['a', 'href']
@@ -176,8 +175,14 @@ class JobRunCommand extends ContainerAwareCommand
         ];
         
         $client = new Client();
-        
-        $response = $client->get($this->parseJobLink($job));
+
+        try {
+            $response = $client->get($this->parseJobLink($job));
+        } catch (ClientException $exception) {
+            //$this->io->error($exception->getMessage());
+            return [null, null];
+        }
+
         $contentHtml = $response->getBody()->getContents();
         
         /**
@@ -191,6 +196,10 @@ class JobRunCommand extends ContainerAwareCommand
 
         foreach ($data as $item) {
             $link = trim($item['link']);
+
+            if (strlen($link) > 255) {
+                continue;
+            }
 
             // 合格的链接
             if ($link) {
@@ -223,8 +232,8 @@ class JobRunCommand extends ContainerAwareCommand
             $document['jobId'] = $job->getId();
             $document['link'] = $job->getLink();
         } else {
-            $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
-            throw new NotFoundHttpException('no document, exit');
+           // $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
+            return [$links, null];
         }
         
         return [$links, $document];

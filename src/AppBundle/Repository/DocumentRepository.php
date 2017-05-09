@@ -59,4 +59,18 @@ class DocumentRepository extends EntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * @param $link
+     * @return mixed
+     */
+    public function getDocumentByLink($link)
+    {
+        return $this->createQueryBuilder('p')
+            ->select('p')
+            ->where('p.link = :link')->setParameter('link', $link)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }
