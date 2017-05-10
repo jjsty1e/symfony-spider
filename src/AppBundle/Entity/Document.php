@@ -11,7 +11,8 @@ use Doctrine\ORM\Mapping\Index;
  * @ORM\Table(name="document",
  *      indexes={
  *          @Index(name="link_idx", columns={"link"}),
- *          @Index(name="job_id_idx", columns={"jobId"})
+ *          @Index(name="job_id_idx", columns={"jobId"}),
+ *          @Index(name="title_idx", columns={"title"})
  *      })
  * @ORM\Entity(repositoryClass="AppBundle\Repository\DocumentRepository")
  */
