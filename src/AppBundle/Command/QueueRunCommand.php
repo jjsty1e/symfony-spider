@@ -161,7 +161,7 @@ class QueueRunCommand extends ContainerAwareCommand
 
             if ($document) {
                 $spiderService->finishJob($jobId);
-                //$this->io->warning('the same document in db! : ' . $document->getLink() . '. new link: ' . $link);
+                $this->io->warning('the same document in db! : ' . $document->getLink() . '. new link: ' . $link);
                 continue;
             }
 
@@ -169,7 +169,7 @@ class QueueRunCommand extends ContainerAwareCommand
 
             $spiderService->finishJob($jobId);
 
-            //$this->io->success('Created new document: ' . $link);
+            $this->io->success('Created new document: ' . $link);
         }
     }
 }

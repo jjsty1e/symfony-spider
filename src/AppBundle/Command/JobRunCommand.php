@@ -71,7 +71,7 @@ class JobRunCommand extends ContainerAwareCommand
                 $spiderService->createWaitingJobSet($this->spiderId);
             }
 
-            //$io->note('[JOB] - created new job');
+            $io->note('[JOB] - created new job');
 
             if (!$spiderId) {
                 throw new InvalidArgumentException('argument:spiderId error!');
@@ -113,7 +113,7 @@ class JobRunCommand extends ContainerAwareCommand
             // push link job to redis queue
             if ($links) {
                 $validLinks = array_filter($links, function ($value) use ($jobRepository) {
-                    return !(bool) $jobRepository->findOneBy(['link' => $value]);
+                    return strlen($value) < 255 && !(bool) $jobRepository->findOneBy(['link' => $value]);
                 });
 
                 $redisJobs = array_map(function ($value) use ($spiderId){
@@ -137,7 +137,7 @@ class JobRunCommand extends ContainerAwareCommand
                     $spiderService->finishJob($jobId);
                 }
 
-                //$this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
+                $this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
 
                 $spiderService->pushRedisDocument($documentResource);
             }
@@ -160,7 +160,7 @@ class JobRunCommand extends ContainerAwareCommand
             throw new \Exception('Job:' . $job->getId() . ' is not running');
         }
 
-        //$this->io->note('now crawl link: ' . $job->getLink());
+        $this->io->note('now crawl link: ' . $job->getLink());
         
         $linkRule = [
             'link' => ['a', 'href']
@@ -185,7 +185,7 @@ class JobRunCommand extends ContainerAwareCommand
                 ]
             ]);
         } catch (ClientException $exception) {
-            //$this->io->error($exception->getMessage());
+            $this->io->error($exception->getMessage());
             return [null, null];
         }
 
@@ -238,7 +238,7 @@ class JobRunCommand extends ContainerAwareCommand
             $document['jobId'] = $job->getId();
             $document['link'] = $job->getLink();
         } else {
-           // $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
+            $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
             return [$links, null];
         }
         

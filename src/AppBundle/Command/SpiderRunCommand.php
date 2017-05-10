@@ -11,6 +11,7 @@ namespace AppBundle\Command;
 
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Exception\RuntimeException;
@@ -41,14 +42,29 @@ class SpiderRunCommand extends ContainerAwareCommand
      * @var int
      */
     private $timeout = 0;
+
+    /**
+     * @var bool
+     */
+    private $isDebug = false;
     
     protected function configure()
     {
         $this->setName('spider:run');
+        $this->addOption('jobCount', 'c', InputOption::VALUE_OPTIONAL);
+        $this->addOption('debug', 'd', InputOption::VALUE_NONE);
     }
     
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        if ($inputCount = $input->getOption('jobCount')) {
+            $this->jobCount = $inputCount;
+        }
+
+        if ($input->getOption('debug')) {
+            $this->isDebug = true;
+        }
+
         for ($i = 0; $i < $this->jobCount; $i++) {
             $this->jobs[$i] = $this->createOneJob();
         }
@@ -73,14 +89,15 @@ class SpiderRunCommand extends ContainerAwareCommand
                     $break = true;
                 }
             }
-    
-            echo $jobQueue->getIncrementalOutput();
+
+            if ($this->isDebug) {
+                echo $jobQueue->getIncrementalOutput();
+                echo $documentQueue->getIncrementalOutput();
+                echo $process->getIncrementalOutput();
+            }
+
             echo $jobQueue->getIncrementalErrorOutput();
-
-            echo $documentQueue->getIncrementalOutput();
             echo $documentQueue->getIncrementalErrorOutput();
-
-            echo $process->getIncrementalOutput();
             echo $process->getIncrementalErrorOutput();
 
 
