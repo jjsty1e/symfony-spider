@@ -177,7 +177,13 @@ class JobRunCommand extends ContainerAwareCommand
         $client = new Client();
 
         try {
-            $response = $client->get($this->parseJobLink($job));
+            $response = $client->get($this->parseJobLink($job), [
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.98 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Referer' => 'http://www.edushi.com/'
+                ]
+            ]);
         } catch (ClientException $exception) {
             //$this->io->error($exception->getMessage());
             return [null, null];
