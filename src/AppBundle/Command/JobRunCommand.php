@@ -239,7 +239,8 @@ class JobRunCommand extends ContainerAwareCommand
                 }
 
                 if (strpos($link, '/') === 0) {
-                    $links[] = sprintf('%s%s', rtrim($spider->getSite(), '/'), $link);
+                    $urlData = parse_url($spider->getSite());
+                    $links[] = sprintf('%s://%s%s', $urlData['scheme'], $urlData['host'], $link);
                 }
             }
         }
