@@ -57,6 +57,7 @@ class SpiderRunCommand extends ContainerAwareCommand
     {
         $this->setName('spider:run');
         $this->addOption('jobCount', 'c', InputOption::VALUE_OPTIONAL);
+        $this->addOption('spiderName', null, InputOption::VALUE_OPTIONAL);
         $this->addOption('debug', 'd', InputOption::VALUE_NONE);
     }
     
@@ -64,6 +65,10 @@ class SpiderRunCommand extends ContainerAwareCommand
     {
         if ($inputCount = $input->getOption('jobCount')) {
             $this->jobCount = $inputCount;
+        }
+        
+        if ($input->getOption('spiderName')) {
+            $this->spiderName = $input->getOption('spiderName');
         }
 
         if ($input->getOption('debug')) {
