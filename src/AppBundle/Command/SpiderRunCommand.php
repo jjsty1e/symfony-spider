@@ -168,8 +168,11 @@ class SpiderRunCommand extends ContainerAwareCommand
     {
         $queueVersion = time() . mt_rand(1000, 9999);
         
-        $jobQueue = new Process("php app/console queue:run job --queueVersion {$queueVersion} -vvv");
-        $documentQueue = new Process("php app/console queue:run document --queueVersion {$queueVersion} -vvv");
+        $jobQueueCommand = sprintf("php app/console queue:run job --queueVersion %s %s", $queueVersion, $this->isDebug ? '-vvv' : '');
+        $documentQueueCommand = sprintf("php app/console queue:run document --queueVersion %s %s", $queueVersion, $this->isDebug ? '-vvv' : '');
+        
+        $jobQueue = new Process($jobQueueCommand);
+        $documentQueue = new Process($documentQueueCommand);
 
         $jobQueue->start();
         $documentQueue->start();
