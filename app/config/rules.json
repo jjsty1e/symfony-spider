@@ -1,0 +1,26 @@
+{
+  "default" : {
+    "linkRule": {
+      "status": false,
+      "rule": ""
+    },
+    "documentRule": {
+      "title":  {
+        "type": "text",
+        "rule": "h1"
+      },
+      "meta": {
+        "type": "text",
+        "rule": ".meta"
+      },
+      "desc": {
+        "type": "text",
+        "rule": ".desc"
+      },
+      "content": {
+        "type": "html",
+        "rule": ".content"
+      }
+    }
+  }
+}

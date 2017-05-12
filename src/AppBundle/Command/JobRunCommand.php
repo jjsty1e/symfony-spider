@@ -40,12 +40,12 @@ class JobRunCommand extends ContainerAwareCommand
     /**
      * @var int 当前的爬虫id
      */
-    private $spiderId;
+    private $spiderName;
     
     protected function configure()
     {
         $this->setName('job:run');
-        $this->addArgument('spiderId');
+        $this->addArgument('spiderName');
     }
     
     /**
@@ -60,15 +60,19 @@ class JobRunCommand extends ContainerAwareCommand
     {
         $this->io = $io = new SymfonyStyle($input, $output);
 
-        $this->spiderId = $spiderId = $input->getArgument('spiderId');
-        $spiderService = $this->getContainer()->get('app.spider.service');
-        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
+        $this->spiderName = $input->getArgument('spiderName');
+        $spiderService      = $this->getContainer()->get('app.spider.service');
+        $jobRepository      = $this->getDoctrine()->getRepository('AppBundle:Job');
         $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
-        $redis = $this->getContainer()->get('snc_redis.cache');
+        $redis              = $this->getContainer()->get('snc_redis.cache');
+        $spiderRepository = $this->getDoctrine()->getRepository('AppBundle:Spider');
+        
+        $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
+        $spiderId = $spider->getId();
 
         while (true) {
             if ($redis->scard('spider:waiting-job') == 0) {
-                $spiderService->createWaitingJobSet($this->spiderId);
+                $spiderService->createWaitingJobSet($this->spiderName);
             }
 
             $io->note('[JOB] - created new job');
@@ -80,7 +84,24 @@ class JobRunCommand extends ContainerAwareCommand
 
             do {
                 $jobId = $redis->spop('spider:waiting-job');
-            } while ($redis->sismember('spider:running-job', $jobId));
+                
+                if (!$jobId) {
+                    $io->warning('No waiting job, sleep 5 seconds then check again!');
+                    sleep(5);
+                    continue;
+                }
+                
+                $isRunning = $redis->sismember('spider:running-job', $jobId);
+                
+                if ($isRunning) {
+                    $io->warning('Job:'. $jobId .' is Running, go get next one!');
+                    sleep(5);
+                    continue;
+                } else {
+                    break;
+                }
+                
+            } while (true);
 
             $redisRet = $redis->sadd('spider:running-job', [$jobId]);
 
@@ -155,6 +176,7 @@ class JobRunCommand extends ContainerAwareCommand
     {
         $spiderRepository = $this->getDoctrine()->getRepository('AppBundle:Spider');
         $spider = $spiderRepository->find($job->getSpiderId());
+        $spiderService = $this->getContainer()->get('app.spider.service');
         
         if ($job->getStatus() !== 1) {
             throw new \Exception('Job:' . $job->getId() . ' is not running');
@@ -166,13 +188,16 @@ class JobRunCommand extends ContainerAwareCommand
             'link' => ['a', 'href']
         ];
         
-        $documentRule = [
-            'title' => ['h1', 'text'],
-            'date' => ['.f-l.article-tips', 'text'],
-            'desc' => ['.short-article', 'text'],
-            'meta' => ['.f-l.article-tips', 'text'],
-            'content' => ['.main-article.clr', 'html']
-        ];
+        $rules = $spiderService->getRules($spider->getName());
+    
+        $documentRule = [];
+        
+        foreach ($rules['documentRule'] as $ruleName => $rule) {
+            $documentRule[$ruleName] = [
+                $rule['rule'],
+                $rule['type']
+            ];
+        }
         
         $client = new Client();
 
@@ -181,7 +206,7 @@ class JobRunCommand extends ContainerAwareCommand
                 'headers' => [
                     'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.98 Safari/537.36',
                     'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Referer' => 'http://www.edushi.com/'
+                    'Referer' => $spider->getSite()
                 ]
             ]);
         } catch (ClientException $exception) {
@@ -214,7 +239,7 @@ class JobRunCommand extends ContainerAwareCommand
                 }
 
                 if (strpos($link, '/') === 0) {
-                    $links[] = sprintf('%s%s', $spider->getSite(), $link);
+                    $links[] = sprintf('%s%s', rtrim($spider->getSite(), '/'), $link);
                 }
             }
         }
@@ -222,6 +247,8 @@ class JobRunCommand extends ContainerAwareCommand
         $ql = QueryList::Query($contentHtml, $documentRule);
         
         $originDoc = $ql->getData();
+        
+        print_r($links);
         
         if (isset($originDoc[0]) && !empty($originDoc[0]['title']) && !empty($originDoc[0]['content'])) {
             $document = $originDoc[0];
@@ -233,10 +260,10 @@ class JobRunCommand extends ContainerAwareCommand
             if (empty($document['desc'])) {
                 $document['desc'] = '';
             }
-
-            $document['date'] = '';
+            
             $document['jobId'] = $job->getId();
             $document['link'] = $job->getLink();
+            $document['spiderId'] = $job->getSpiderId();
         } else {
             $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
             return [$links, null];

@@ -18,13 +18,14 @@ class DocumentRepository extends EntityRepository
      *
      * @param $title
      * @param $jobId
+     * @param $spiderId
      * @param $meta
      * @param $link
      * @param $content
      * @param $description
      * @return Document
      */
-    public function createDocument($title, $jobId, $meta, $link, $content, $description)
+    public function createDocument($title, $jobId, $spiderId, $meta, $link, $content, $description)
     {
         $document = new Document();
         
@@ -34,6 +35,7 @@ class DocumentRepository extends EntityRepository
         $document->setContent($content);
         $document->setJobId($jobId);
         $document->setLink($link);
+        $document->setSpiderId($spiderId);
         
         $nowDate = new \DateTime();
         

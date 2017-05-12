@@ -39,7 +39,7 @@ class QueueRunCommand extends ContainerAwareCommand
     {
         $this->setName('queue:run');
         $this->addArgument('queueName');
-        $this->addOption('spiderId', null, InputOption::VALUE_REQUIRED);
+        $this->addOption('spiderName', null, InputOption::VALUE_REQUIRED);
         $this->addOption('queueVersion', null, InputOption::VALUE_REQUIRED);
     }
 
@@ -127,8 +127,7 @@ class QueueRunCommand extends ContainerAwareCommand
                 $this->io->warning('queue version changed!');
                 return ;
             }
-
-
+            
             $redisDocument = $redis->lpop('spider:document-queue');
 
             if (!$redisDocument) {
@@ -139,6 +138,7 @@ class QueueRunCommand extends ContainerAwareCommand
             $jobData = json_decode($redisDocument, true);
 
             $jobId = $jobData['jobId'];
+            $spiderId = $jobData['spiderId'];
             $link = $jobData['link'];
             $title = $jobData['title'];
             $meta = $jobData['meta'];
@@ -165,7 +165,7 @@ class QueueRunCommand extends ContainerAwareCommand
                 continue;
             }
 
-            $documentRepository->createDocument($title, $jobId, $meta, $link, $content, $desc);
+            $documentRepository->createDocument($title, $jobId, $spiderId, $meta, $link, $content, $desc);
 
             $spiderService->finishJob($jobId);
 

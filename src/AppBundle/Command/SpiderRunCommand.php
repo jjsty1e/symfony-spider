@@ -10,6 +10,7 @@
 namespace AppBundle\Command;
 
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -33,12 +34,12 @@ class SpiderRunCommand extends ContainerAwareCommand
     /**
      * @var int 爬虫进程的数量
      */
-    private $jobCount = 4;
+    private $jobCount = 1;
     
     /**
      * @var int 当前爬虫的id
      */
-    private $spiderId = 1;
+    private $spiderName = 'default';
     
     /**
      * job的超时时间，0表示不设置超时
@@ -74,8 +75,19 @@ class SpiderRunCommand extends ContainerAwareCommand
         }
         
         $io = new SymfonyStyle($input, $output);
+        
+        $spiderRepository = $this->getContainer()->get('doctrine')->getRepository('AppBundle:Spider');
+        
+        $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
+        
+        if (!$spider) {
+            throw new InvalidArgumentException(sprintf(
+                'spider: %s not exist!',
+                $this->spiderName
+            ));
+        }
 
-        list($jobQueue, $documentQueue) = $this->startQueue($this->spiderId);
+        list($jobQueue, $documentQueue) = $this->startQueue();
         
         for ($i = 0; $i < $this->jobCount; $i++) {
 
@@ -123,7 +135,7 @@ class SpiderRunCommand extends ContainerAwareCommand
                     $io->warning('queue is not running ,restart!');
                     $jobQueue->stop();
                     $documentQueue->stop();
-                    list($jobQueue, $documentQueue) = $this->startQueue($this->spiderId);
+                    list($jobQueue, $documentQueue) = $this->startQueue();
                 }
 
                 $i = -1;
@@ -137,7 +149,7 @@ class SpiderRunCommand extends ContainerAwareCommand
      */
     protected function createOneJob()
     {
-        $process = new Process("php app/console job:run {$this->spiderId}");
+        $process = new Process("php app/console job:run {$this->spiderName}");
         
         if ($this->timeout) {
             $process->setTimeout($this->timeout);
@@ -150,15 +162,14 @@ class SpiderRunCommand extends ContainerAwareCommand
 
     /**
      *
-     * @param int $spiderId
      * @return Process[]
      */
-    protected function startQueue($spiderId)
+    protected function startQueue()
     {
         $queueVersion = time() . mt_rand(1000, 9999);
         
-        $jobQueue = new Process("php app/console queue:run job --spiderId {$spiderId}  --queueVersion {$queueVersion}");
-        $documentQueue = new Process("php app/console queue:run document --spiderId {$spiderId} --queueVersion {$queueVersion}");
+        $jobQueue = new Process("php app/console queue:run job --queueVersion {$queueVersion} -vvv");
+        $documentQueue = new Process("php app/console queue:run document --queueVersion {$queueVersion} -vvv");
 
         $jobQueue->start();
         $documentQueue->start();

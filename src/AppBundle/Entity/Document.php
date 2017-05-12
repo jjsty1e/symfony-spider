@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping\Index;
  * @ORM\Table(name="document",
  *      indexes={
  *          @Index(name="link_idx", columns={"link"}),
- *          @Index(name="job_id_idx", columns={"jobId"}),
+ *          @Index(name="job_id_idx", columns={"job_id"}),
  *          @Index(name="title_idx", columns={"title"})
  *      })
  * @ORM\Entity(repositoryClass="AppBundle\Repository\DocumentRepository")
@@ -44,9 +44,16 @@ class Document
     /**
      * @var int
      *
-     * @ORM\Column(name="JobId", type="integer")
+     * @ORM\Column(name="job_id", type="integer")
      */
     private $jobId;
+    
+    /**
+     * @var int
+     *
+     * @ORM\Column(name="spider_id", type="integer")
+     */
+    private $spiderId;
 
     /**
      * @var string
@@ -79,14 +86,14 @@ class Document
     /**
      * @var \DateTime
      *
-     * @ORM\Column(name="createTime", type="datetime")
+     * @ORM\Column(name="create_time", type="datetime")
      */
     private $createTime;
 
     /**
      * @var \DateTime
      *
-     * @ORM\Column(name="updateTime", type="datetime")
+     * @ORM\Column(name="update_time", type="datetime")
      */
     private $updateTime;
 
@@ -146,7 +153,23 @@ class Document
     {
         return $this->jobId;
     }
-
+    
+    /**
+     * @return int
+     */
+    public function getSpiderId()
+    {
+        return $this->spiderId;
+    }
+    
+    /**
+     * @param int $spiderId
+     */
+    public function setSpiderId($spiderId)
+    {
+        $this->spiderId = $spiderId;
+    }
+    
     /**
      * Set description
      *

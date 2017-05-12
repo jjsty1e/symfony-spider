@@ -2,6 +2,7 @@
 
 namespace AppBundle\Repository;
 
+use AppBundle\Entity\Spider;
 use Doctrine\ORM\EntityRepository;
 
 /**
@@ -12,4 +13,28 @@ use Doctrine\ORM\EntityRepository;
  */
 class SpiderRepository extends EntityRepository
 {
+    /**
+     * @param $spiderName
+     * @param $site
+     * @param $siteDomain
+     * @return Spider
+     */
+    public function createSpider($spiderName, $site, $siteDomain)
+    {
+        $spider = new Spider();
+        
+        $spider->setName($spiderName);
+        $spider->setDomain($siteDomain);
+        $spider->setSite($site);
+        
+        $nowDate = new \DateTime();
+        
+        $spider->setCreateTime($nowDate);
+        $spider->setUpdateTime($nowDate);
+        
+        $this->getEntityManager()->persist($spider);
+        $this->getEntityManager()->flush();
+        
+        return $spider;
+    }
 }

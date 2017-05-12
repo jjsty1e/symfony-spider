@@ -13,11 +13,11 @@ use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class ClearDoctrineCommand extends ContainerAwareCommand
+class ClearRedisCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
-        $this->setName('clear:doctrine');
+        $this->setName('clear:redis');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -26,6 +26,12 @@ class ClearDoctrineCommand extends ContainerAwareCommand
 
         $keys = $redis->keys('*[1]*');
 
+        if ($keys) {
+            $redis->del($keys);
+        }
+        
+        $keys = $redis->keys('*spider*');
+        
         if ($keys) {
             $redis->del($keys);
         }
