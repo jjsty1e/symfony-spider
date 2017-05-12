@@ -1,6 +1,6 @@
 <h1 align="center"> SYMFONY-SPIDER </h1>
 
-一个简单的多进程爬虫，基于php的symfony框架开发
+<p align="center">一个简单的多进程爬虫，基于php的symfony框架开发</p>
 
 ## 依赖服务
 
@@ -12,7 +12,7 @@
 ## 安装
 
 ```bash
-git clone git@github.com:Jaggle/mysql-backup.git
+git clone git@github.com:Jaggle/symfony-spider.git
 cd spider 
 composer install
 ```
