@@ -248,8 +248,6 @@ class JobRunCommand extends ContainerAwareCommand
         
         $originDoc = $ql->getData();
         
-        print_r($links);
-        
         if (isset($originDoc[0]) && !empty($originDoc[0]['title']) && !empty($originDoc[0]['content'])) {
             $document = $originDoc[0];
 
@@ -270,17 +268,5 @@ class JobRunCommand extends ContainerAwareCommand
         }
         
         return [$links, $document];
-    }
-
-    /**
-     * 处理链接
-     *
-     * @param Job $job
-     * @return mixed|string
-     */
-    protected function parseJobLink(Job $job)
-    {
-        $res = preg_replace('#(-p\d)?\.html$#', '-p0.html',$job->getLink());
-        return $res ? $res : $job->getLink();
     }
 }
