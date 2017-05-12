@@ -65,7 +65,10 @@ class SpiderService
 
         }
     }
-
+    
+    /**
+     * @param array $jobData
+     */
     public function pushRedisDocument(array $jobData)
     {
         $redis = $this->container->get('snc_redis.cache');
@@ -74,7 +77,10 @@ class SpiderService
             $redis->lpush('spider:document-queue', json_encode($jobData));
         }
     }
-
+    
+    /**
+     * @param array $jobs
+     */
     public function pushRedisJob(array $jobs)
     {
         $redis = $this->container->get('snc_redis.cache');
@@ -99,17 +105,6 @@ class SpiderService
 
         if ($jobIds) {
             $redis->sadd('spider:waiting-job', $jobIds);
-        }
-    }
-
-    public function checkQueueStatusOrRestart()
-    {
-        $redis = $this->container->get('snc_redis.cache');
-
-        $status = $redis->get('spider:status');
-
-        if (!$status) {
-
         }
     }
 }

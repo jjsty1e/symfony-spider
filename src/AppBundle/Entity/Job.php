@@ -38,13 +38,6 @@ class Job
      * @ORM\Column(name="status", type="integer", options={"comment":"0：从未执行过；1：正在执行；2：执行完成"})
      */
     private $status;
-
-    /**
-     * @var int
-     *
-     * @ORM\Column(name="categoryId", type="integer", options={"comment":"属于哪个分类, 如果是0，则表示认为从首页爬取而来", "default":0})
-     */
-    private $categoryId;
     
     /**
      * @var integer
@@ -136,29 +129,6 @@ class Job
     public function getStatus()
     {
         return $this->status;
-    }
-
-    /**
-     * Set categoryId
-     *
-     * @param integer $categoryId
-     * @return Job
-     */
-    public function setCategoryId($categoryId)
-    {
-        $this->categoryId = $categoryId;
-
-        return $this;
-    }
-
-    /**
-     * Get categoryId
-     *
-     * @return integer 
-     */
-    public function getCategoryId()
-    {
-        return $this->categoryId;
     }
 
     /**

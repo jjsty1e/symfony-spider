@@ -29,7 +29,6 @@ class JobRepository extends EntityRepository
         $job->setRetry(0);
         $job->setStatus(0);
         $job->setFailed(false);
-        $job->setCategoryId(0);
         
         $nowDate = new \DateTime();
         

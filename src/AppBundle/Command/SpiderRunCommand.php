@@ -20,8 +20,6 @@ use Symfony\Component\Process\Process;
 /**
  * 开启爬虫master任务
  *
- * 在什么时机获取category呢？，将所有链接保存在一起，如果不符合item的规则，那么认为这是一个item页面
- *
  * Class SpiderRunCommand
  * @package AppBundle\Command
  */
@@ -32,8 +30,14 @@ class SpiderRunCommand extends ContainerAwareCommand
      */
     private $jobs = [];
     
+    /**
+     * @var int 爬虫进程的数量
+     */
     private $jobCount = 4;
-
+    
+    /**
+     * @var int 当前爬虫的id
+     */
     private $spiderId = 1;
     
     /**
@@ -151,8 +155,8 @@ class SpiderRunCommand extends ContainerAwareCommand
      */
     protected function startQueue($spiderId)
     {
-        $queueVersion = time() . rand(1000, 9999);
-        // 检查队列状态
+        $queueVersion = time() . mt_rand(1000, 9999);
+        
         $jobQueue = new Process("php app/console queue:run job --spiderId {$spiderId}  --queueVersion {$queueVersion}");
         $documentQueue = new Process("php app/console queue:run document --spiderId {$spiderId} --queueVersion {$queueVersion}");
 
