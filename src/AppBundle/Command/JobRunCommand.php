@@ -269,4 +269,16 @@ class JobRunCommand extends ContainerAwareCommand
         
         return [$links, $document];
     }
+    
+    
+    /**
+     * 处理链接
+     *
+     * @param Job $job
+     * @return mixed|string
+     */
+    protected function parseJobLink(Job $job)
+    {
+        return $job->getLink();
+    }
 }
