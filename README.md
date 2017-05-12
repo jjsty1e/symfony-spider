@@ -1,5 +1,4 @@
-spider
-============
+<h1 align="center"> SYMFONY-SPIDER </h1>
 
 一个简单的多进程爬虫，基于php的symfony框架开发
 
@@ -58,7 +57,7 @@ vim app/config/rules.json
 
 目前只能爬取四个字段，可扩展字段配置正在开发中
 
-```json
+```
 {
   "default" : {  # 爬虫名字
     "linkRule": {    # 是否只抓取包含以下ruleurl
