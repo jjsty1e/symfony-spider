@@ -19,6 +19,16 @@ composer install
 
 根据提示输入数据库账号和密码
 
+## 在 `app/config/parameters.yml` 添加 redis 配置：
+
+```
+parameters:
+...
+    snc_dsn: redis://localhost
+...
+
+```
+
 ## 使用命令行创建数据库(已创建可略过)
 
 ``
@@ -29,16 +39,6 @@ php app/console doctrine:database:create
  
 ```
 php app/console doctrine:schema:update --force --dump-sql
-
-```
-
-## 在 `app/config/parameters.yml` 添加 redis 配置：
-
-```
-parameters:
-...
-    snc_dsn: redis://localhost
-...
 
 ```
 
@@ -88,21 +88,26 @@ vim app/config/rules.json
 
 ## 运行爬虫
 ```
-php app/console spider:run --jobCount=4 --spiderName=SPIDER_NAME
+php app/console spider:run --spiderName=SPIDER_NAME --workerCount=4 
 ```
 
-> jobCount: 启动的进程数量
-> spiderName: 爬虫名称，默认"default"
-
-或者 debug模式
+or
 
 ```
-php app/console app/console spider:run --debug
+php app/console spider:run SPIDER_NAME --workerCount=4 
 ```
 
+or with debug
 
-----
+```
+php app/console app/console spider:run SPIDER_NAME --workerCount=4 --debug
+```
 
+> - workerCount: 启动的进程数量，默认为1
+> - spiderName: 爬虫名称，默认"default"
+
+
+-----
 
 have fun!
 

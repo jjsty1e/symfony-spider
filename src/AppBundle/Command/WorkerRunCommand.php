@@ -27,10 +27,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * 每个任务会检测当前是否有job在获取category页面，如果没有，那么当前这个job会当作category-fetcher
  *
- * Class JobRunCommand
+ * Class WorkerRunCommand
  * @package AppBundle\Command
  */
-class JobRunCommand extends ContainerAwareCommand
+class WorkerRunCommand extends ContainerAwareCommand
 {
     /**
      * @var SymfonyStyle $io
@@ -44,7 +44,7 @@ class JobRunCommand extends ContainerAwareCommand
     
     protected function configure()
     {
-        $this->setName('job:run');
+        $this->setName('worker:run');
         $this->addArgument('spiderName');
     }
     
@@ -73,6 +73,10 @@ class JobRunCommand extends ContainerAwareCommand
         while (true) {
             if ($redis->scard('spider:waiting-job') == 0) {
                 $spiderService->createWaitingJobSet($this->spiderName);
+            }
+            
+            if ($redis->scard('spider:waiting-job') == 0) {
+                $io->warning('Add waiting job failed, maybe there is not enough link to crawl for spider:' . $this->spiderName);
             }
 
             $io->note('[JOB] - created new job');

@@ -34,7 +34,7 @@ class SpiderRunCommand extends ContainerAwareCommand
     /**
      * @var int 爬虫进程的数量
      */
-    private $jobCount = 1;
+    private $workerCount = 1;
     
     /**
      * @var int 当前爬虫的id
@@ -56,27 +56,32 @@ class SpiderRunCommand extends ContainerAwareCommand
     protected function configure()
     {
         $this->setName('spider:run');
-        $this->addOption('jobCount', 'c', InputOption::VALUE_OPTIONAL);
+        $this->addArgument('spiderName');
+        $this->addOption('workerCount', 'c', InputOption::VALUE_OPTIONAL);
         $this->addOption('spiderName', null, InputOption::VALUE_OPTIONAL);
         $this->addOption('debug', 'd', InputOption::VALUE_NONE);
     }
     
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($inputCount = $input->getOption('jobCount')) {
-            $this->jobCount = $inputCount;
+        if ($input->getArgument('spiderName')) {
+            $this->spiderName = $input->getArgument('spiderName');
         }
         
-        if ($input->getOption('spiderName')) {
+        if (strlen($input->getArgument('spiderName')) == 0 && $input->getOption('spiderName')) {
             $this->spiderName = $input->getOption('spiderName');
+        }
+    
+        if ($inputCount = $input->getOption('workerCount')) {
+            $this->workerCount = $inputCount;
         }
 
         if ($input->getOption('debug')) {
             $this->isDebug = true;
         }
 
-        for ($i = 0; $i < $this->jobCount; $i++) {
-            $this->jobs[$i] = $this->createOneJob();
+        for ($i = 0; $i < $this->workerCount; $i++) {
+            $this->jobs[$i] = $this->createOneWorker();
         }
         
         $io = new SymfonyStyle($input, $output);
@@ -94,7 +99,7 @@ class SpiderRunCommand extends ContainerAwareCommand
 
         list($jobQueue, $documentQueue) = $this->startQueue();
         
-        for ($i = 0; $i < $this->jobCount; $i++) {
+        for ($i = 0; $i < $this->workerCount; $i++) {
 
             $process = $this->jobs[$i];
             $break = false;
@@ -106,7 +111,7 @@ class SpiderRunCommand extends ContainerAwareCommand
                     $io->error(sprintf('PROCESS:%s timeout!', $i));
                     $process->stop();
         
-                    $this->jobs[$i] = $this->createOneJob();
+                    $this->jobs[$i] = $this->createOneWorker();
                     $break = true;
                 }
             }
@@ -127,11 +132,11 @@ class SpiderRunCommand extends ContainerAwareCommand
                     //$io->warning(sprintf('PROCESS:%S ended!', $i));
         
                     $process->stop();
-                    $this->jobs[$i] = $this->createOneJob();
+                    $this->jobs[$i] = $this->createOneWorker();
                 }
             }
             
-            if ($i === $this->jobCount - 1) {
+            if ($i === $this->workerCount - 1) {
 
                 if (!$jobQueue->isRunning() or !$documentQueue->isRunning()) {
                     echo $jobQueue->getIncrementalErrorOutput();
@@ -152,9 +157,9 @@ class SpiderRunCommand extends ContainerAwareCommand
     /**
      * @return Process
      */
-    protected function createOneJob()
+    protected function createOneWorker()
     {
-        $process = new Process("php app/console job:run {$this->spiderName}");
+        $process = new Process("php app/console worker:run {$this->spiderName}");
         
         if ($this->timeout) {
             $process->setTimeout($this->timeout);
