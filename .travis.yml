@@ -8,3 +8,5 @@ php:
   - hhvm
   - nightly
 script: phpunit --configuration app/phpunit.xml.dist
+install:
+   - composer install
