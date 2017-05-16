@@ -1,45 +1,49 @@
 <h1 align="center"> SYMFONY-SPIDER </h1>
-
-<p align="center">一个简单的多进程爬虫，基于php的symfony框架开发</p>
+<p align="center">
+<a href="https://travis-ci.org/Jaggle/symfony-spider"><img src="https://travis-ci.org/Jaggle/symfony-spider.svg?branch=master"></a>
+</p>
+<p align="center">一个使用非常简单的多进程爬虫，基于php的symfony框架开发</p>
 
 ## 依赖服务
 
-- php
-- mysql
+- php >= 5.6
+- mysql = 5.6
 - redis
 
 
 ## 安装
 
 ```bash
-git clone git@github.com:Jaggle/symfony-spider.git
+git clone git@github.com:Jaggle/symfony-spider.git spider
 cd spider 
-composer install
+composer install --no-dev
 ```
 
-根据提示输入数据库账号和密码
+`composer  install`命令的最后，根据提示输入数据库账号和密码
 
-## 在 `app/config/parameters.yml` 添加 redis 配置：
+## 修改redis配置
+
+```
+vim app/config/parameters.yml
+```
 
 ```
 parameters:
 ...
-    snc_dsn: redis://localhost
+    snc_dsn: redis://localhost  # with password: redis:redispassword@localhost
 ...
-
 ```
 
-## 使用命令行创建数据库(已创建可略过)
+## 创建数据库(已创建可略过)
 
-``
+```
 php app/console doctrine:database:create
-``
+```
 
 ## 创建表结构
  
 ```
 php app/console doctrine:schema:update --force --dump-sql
-
 ```
 
 ## 创建一个爬虫

@@ -1,5 +1,5 @@
 {
-    "name": "administrator/yeskn-spider",
+    "name": "jaggle/spider",
     "license": "proprietary",
     "type": "project",
     "autoload": {
@@ -23,7 +23,6 @@
         "guzzlehttp/guzzle": "^6.2",
         "incenteev/composer-parameter-handler": "~2.0",
         "jaeger/querylist": "^3.2",
-        "phpunit/phpunit": "5.4.*",
         "predis/predis": "^1.1",
         "sensio/distribution-bundle": "~4.0",
         "sensio/framework-extra-bundle": "^3.0.2",
@@ -35,7 +34,8 @@
     },
     "require-dev": {
         "sensio/generator-bundle": "~3.0",
-        "symfony/phpunit-bridge": "~2.7"
+        "symfony/phpunit-bridge": "~2.7",
+        "phpunit/phpunit": "5.4.*"
     },
     "scripts": {
         "symfony-scripts": [
