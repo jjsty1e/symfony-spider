@@ -16,7 +16,7 @@
 ```bash
 git clone git@github.com:Jaggle/symfony-spider.git spider
 cd spider 
-composer install --no-dev
+composer install
 ```
 
 `composer  install`命令的最后，根据提示输入数据库账号和密码
