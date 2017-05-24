@@ -19,20 +19,7 @@ cd spider
 composer install
 ```
 
-`composer  install`命令的最后，根据提示输入数据库账号和密码
-
-## 修改redis配置
-
-```
-vim app/config/parameters.yml
-```
-
-```
-parameters:
-...
-    snc_dsn: redis://localhost  # with password: redis:redispassword@localhost
-...
-```
+`composer  install`命令的最后，根据提示输入数据库配置以及redis dsn
 
 ## 创建数据库(已创建可略过)
 
@@ -63,7 +50,7 @@ vim app/config/rules.json
 
 ```
 {
-  "default" : {  # 爬虫名字
+  "default" : {  # 刚才创建的爬虫名字
     "linkRule": {    # 是否只抓取包含以下ruleurl
       "status": false,    # 是否启用linkRule
       "rule": ""    # url所需要包含的字符串
