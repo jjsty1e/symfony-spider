@@ -70,6 +70,8 @@ class WorkerRunCommand extends ContainerAwareCommand
         $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
         $spiderId = $spider->getId();
 
+        cli_set_process_title('spider-worker');
+
         while (true) {
             if ($redis->scard('spider:waiting-job') == 0) {
                 $spiderService->createWaitingJobSet($this->spiderName);
