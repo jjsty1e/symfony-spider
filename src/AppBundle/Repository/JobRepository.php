@@ -19,6 +19,7 @@ class JobRepository extends EntityRepository
      * @param $spiderId
      * @param $link
      * @return Job
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function createJob($spiderId, $link)
     {
@@ -44,15 +45,16 @@ class JobRepository extends EntityRepository
     /**
      * 获取一个没有执行过的job
      *
-     * @param int $spiderId
+     * @param $spiderId
      * @param $query
-     * @return Job|null
+     * @return mixed
+     * @throws \Doctrine\ORM\NonUniqueResultException
      */
     public function getOneUnProcessJob($spiderId, $query)
     {
         return $this->createQueryBuilder('p')
             ->select('p')
-            ->where('p.status = 0')
+            ->where('p.status = :status')->setParameter('status','not_start')
             ->andWhere('p.retry < 3')
             ->andWhere('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
             ->andWhere('p.link like :query')->setParameter('query', "%$query%")
@@ -73,7 +75,7 @@ class JobRepository extends EntityRepository
         $queryBuilder = $this->createQueryBuilder('p')
             ->select('p.id')
             ->where('p.spiderId = :spiderId')->setParameter('spiderId', $spiderId)
-            ->andWhere('p.status = 0')
+            ->andWhere('p.status = :status')->setParameter('status', 'not_start')
             ->andWhere('p.retry < 3');
 
         if ($query) {
@@ -89,10 +91,11 @@ class JobRepository extends EntityRepository
      * 完成一个job
      *
      * @param Job $job
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function finishJob(Job $job)
     {
-         $job->setStatus(2);
+         $job->setStatus("finished");
          $job->setUpdateTime(new \DateTime());
          
          $this->getEntityManager()->flush();

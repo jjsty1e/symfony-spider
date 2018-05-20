@@ -69,19 +69,17 @@ class WorkerRunCommand extends ContainerAwareCommand
         
         $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
         $spiderId = $spider->getId();
-
-        cli_set_process_title('spider-worker');
-
+        
         while (true) {
             if ($redis->scard('spider:waiting-job') == 0) {
                 $spiderService->createWaitingJobSet($this->spiderName);
             }
             
             if ($redis->scard('spider:waiting-job') == 0) {
-                $io->warning('Add waiting job failed, maybe there is not enough link to crawl for spider:' . $this->spiderName);
+                $io->warning('[作业进程] 添加等待任务失败，可能没有足够的链接可以抓取了:' . $this->spiderName);
             }
 
-            $io->note('[JOB] - created new job');
+            $io->note('[作业进程] created new job');
 
             if (!$spiderId) {
                 throw new InvalidArgumentException('argument:spiderId error!');
@@ -92,7 +90,7 @@ class WorkerRunCommand extends ContainerAwareCommand
                 $jobId = $redis->spop('spider:waiting-job');
                 
                 if (!$jobId) {
-                    $io->warning('No waiting job, sleep 5 seconds then check again!');
+                    $io->warning('[作业进程] 没有等待中的作业，5秒之后重试!');
                     sleep(5);
                     continue;
                 }
@@ -100,7 +98,7 @@ class WorkerRunCommand extends ContainerAwareCommand
                 $isRunning = $redis->sismember('spider:running-job', $jobId);
                 
                 if ($isRunning) {
-                    $io->warning('Job:'. $jobId .' is Running, go get next one!');
+                    $io->warning('[作业进程] 任务:'. $jobId .' 正在运行中，跳到下一个!');
                     sleep(5);
                     continue;
                 } else {
@@ -116,16 +114,16 @@ class WorkerRunCommand extends ContainerAwareCommand
              */
 
             if (!$redisRet) {
-                throw new \Exception(sprintf('[JOB] - job:%s is running', $jobId));
+                throw new \Exception(sprintf('[作业进程] - 任务:%s 正在运行!', $jobId));
             }
 
             $job = $jobRepository->find($jobId);
 
             if (!$job) {
-                throw new \Exception('none exist job: ' . $jobId);
+                throw new \Exception('[作业进程] 任务不存在: ' . $jobId);
             }
 
-            $jobRepository->updateJobStatus($job, 1);
+            $jobRepository->updateJobStatus($job, "not_start");
 
             /**
              * 任务已经有了对应的文档, 避免并发异常
@@ -164,7 +162,7 @@ class WorkerRunCommand extends ContainerAwareCommand
                     $spiderService->finishJob($jobId);
                 }
 
-                $this->io->success(sprintf('[JOB] - Got new document on this page:%s', $job->getLink()));
+                $this->io->success(sprintf('[作业进程] 在该页发现新的文档:%s', $job->getLink()));
 
                 $spiderService->pushRedisDocument($documentResource);
             }
@@ -185,10 +183,10 @@ class WorkerRunCommand extends ContainerAwareCommand
         $spiderService = $this->getContainer()->get('app.spider.service');
         
         if ($job->getStatus() !== 1) {
-            throw new \Exception('Job:' . $job->getId() . ' is not running');
+            throw new \Exception('[作业进程] ' . $job->getId() . '没有启动');
         }
 
-        $this->io->note('now crawl link: ' . $job->getLink());
+        $this->io->note('[作业进程] 开始抓取: ' . $job->getLink());
         
         $linkRule = [
             'link' => ['a', 'href']
@@ -270,14 +268,13 @@ class WorkerRunCommand extends ContainerAwareCommand
             $document['link'] = $job->getLink();
             $document['spiderId'] = $job->getSpiderId();
         } else {
-            $this->io->note(sprintf('[JOB] - no document on this page: %s', $job->getLink()));
+            $this->io->note(sprintf('[作业进程] 没有发现文档: %s', $job->getLink()));
             return [$links, null];
         }
         
         return [$links, $document];
     }
-    
-    
+
     /**
      * 处理链接
      *

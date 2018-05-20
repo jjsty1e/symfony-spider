@@ -100,5 +100,17 @@ php app/console spider:run SPIDER_NAME --workerCount=4 --debug
 
 -----
 
-have fun!
+## 执行过程
+
+```
+
+
+               |  -- job进程
+master进程 -----| -- job进程
+               |  -- job进程
+
+
+任务队列 ----| -- 文档任务，主要是进行文档的入库操作
+            | -- job任务，控制job的状态，获取待爬的job
+```
 

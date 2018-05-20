@@ -74,6 +74,11 @@ class QueueRunCommand extends ContainerAwareCommand
         }
     }
 
+    /**
+     * job任务
+     *
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
     public function runJobQueue()
     {
         $redis = $this->getContainer()->get('snc_redis.cache');
@@ -114,6 +119,9 @@ class QueueRunCommand extends ContainerAwareCommand
         }
     }
 
+    /**
+     * 文档任务，主要是进行文档的入库操作
+     */
     public function runDocumentQueue()
     {
         $redis = $this->getContainer()->get('snc_redis.cache');

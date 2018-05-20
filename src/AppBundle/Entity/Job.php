@@ -35,7 +35,7 @@ class Job
     /**
      * @var int
      *
-     * @ORM\Column(name="status", type="integer", options={"comment":"0：从未执行过；1：正在执行；2：执行完成"})
+     * @ORM\Column(name="status", type="string", length=10, options={"comment":"not_start：从未执行过；processing：正在执行；finished：执行完成"})
      */
     private $status;
     

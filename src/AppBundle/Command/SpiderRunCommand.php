@@ -80,7 +80,7 @@ class SpiderRunCommand extends ContainerAwareCommand
             $this->isDebug = true;
         }
 
-        @cli_set_process_title('spider-master');
+        //@cli_set_process_title('spider-master');
 
         for ($i = 0; $i < $this->workerCount; $i++) {
             $this->jobs[$i] = $this->createOneWorker();
