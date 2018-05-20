@@ -67,7 +67,8 @@ class SpiderService
      * 完成一个job
      *
      * @param $jobId
-     * @return Job
+     * @return Job|null|object
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
     public function finishJob($jobId)
     {

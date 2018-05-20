@@ -1,5 +1,5 @@
 {
-  "default" : {
+  "sf-spider" : {
     "linkRule": {
       "status": false,
       "rule": ""
@@ -19,7 +19,7 @@
       },
       "content": {
         "type": "html",
-        "rule": ".QuestionAnswer-content .RichContent-inner"
+        "rule": "div.RichContent .RichContent-inner"
       }
     }
   }

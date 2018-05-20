@@ -61,7 +61,7 @@ class QueueRunCommand extends ContainerAwareCommand
         $result = $redis->set('spider:queue-version', $this->queueVersion);
 
         if (!$result) {
-            $this->io->warning('redis set error !');
+            $this->io->warning('[队列] redis连接错误');
             return ;
         }
 
@@ -86,11 +86,11 @@ class QueueRunCommand extends ContainerAwareCommand
 
         $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
 
-        $this->io->success('queue:job is running!');
+        $this->io->success('[任务队列] 任务队列已经启动！');
 
         while (1) {
             if ($redis->get('spider:queue-version') != $this->queueVersion) {
-                $this->io->warning('queue version changed!');
+                $this->io->warning('[任务队列] 版本号被修改了！');
                 return ;
             }
 
@@ -127,12 +127,12 @@ class QueueRunCommand extends ContainerAwareCommand
         $redis = $this->getContainer()->get('snc_redis.cache');
         $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
         $spiderService = $this->getContainer()->get('app.spider.service');
-        $this->io->success('queue:document is running!');
+        $this->io->success('[文档队列] 队列已启动');
 
         while (1) {
             // 如果发现版本被修改，则退出
             if ($redis->get('spider:queue-version') != $this->queueVersion) {
-                $this->io->warning('queue version changed!');
+                $this->io->warning('[文档队列] 队列版本号被修改了！');
                 return ;
             }
             
@@ -158,7 +158,7 @@ class QueueRunCommand extends ContainerAwareCommand
              */
             if ($documentRepository->getDocumentByJobId($jobId)) {
                 $spiderService->finishJob($jobId);
-                $this->io->warning('document has created already!');
+                $this->io->warning('[文档队列] 该任务已经被执行，对应的文档已经创建');
                 continue;
             }
 
@@ -169,7 +169,7 @@ class QueueRunCommand extends ContainerAwareCommand
 
             if ($document) {
                 $spiderService->finishJob($jobId);
-                $this->io->warning('the same document in db! : ' . $document->getLink() . '. new link: ' . $link);
+                $this->io->warning('[文档队列] 已经有相同标题的文档! : ' . $document->getLink() . '. 新链接是: ' . $link);
                 continue;
             }
 
@@ -177,7 +177,7 @@ class QueueRunCommand extends ContainerAwareCommand
 
             $spiderService->finishJob($jobId);
 
-            $this->io->success('Created new document: ' . $link);
+            $this->io->success('[文档队列] 文档已经入库: ' . $link);
         }
     }
 }

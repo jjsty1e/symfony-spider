@@ -89,6 +89,10 @@ class SpiderRunCommand extends ContainerAwareCommand
         $io = new SymfonyStyle($input, $output);
         
         $spiderRepository = $this->getContainer()->get('doctrine')->getRepository('AppBundle:Spider');
+        $jobRepository = $this->getContainer()->get('doctrine')->getRepository('AppBundle:Job');
+
+        $jobRepository->resetJobStatus();
+        $this->getContainer()->get('snc_redis.cache')->del(['spider:running-job']);
         
         $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
         
@@ -180,8 +184,8 @@ class SpiderRunCommand extends ContainerAwareCommand
     {
         $queueVersion = time() . mt_rand(1000, 9999);
         
-        $jobQueueCommand = sprintf("php app/console queue:run job --queueVersion %s %s", $queueVersion, $this->isDebug ? '-vvv' : '');
-        $documentQueueCommand = sprintf("php app/console queue:run document --queueVersion %s %s", $queueVersion, $this->isDebug ? '-vvv' : '');
+        $jobQueueCommand = sprintf("php app/console queue:run job --queueVersion %s %s", $queueVersion, '');
+        $documentQueueCommand = sprintf("php app/console queue:run document --queueVersion %s %s", $queueVersion, '');
         
         $jobQueue = new Process($jobQueueCommand);
         $documentQueue = new Process($documentQueueCommand);

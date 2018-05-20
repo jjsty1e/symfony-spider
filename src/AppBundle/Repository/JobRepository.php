@@ -28,7 +28,7 @@ class JobRepository extends EntityRepository
         $job->setSpiderId($spiderId);
         $job->setLink($link);
         $job->setRetry(0);
-        $job->setStatus(0);
+        $job->setStatus('not_start');
         $job->setFailed(false);
         
         $nowDate = new \DateTime();
@@ -68,7 +68,7 @@ class JobRepository extends EntityRepository
      *
      * @param $spiderId
      * @param $query
-     * @return int
+     * @return array
      */
     public function getAllUnProcessJobIds($spiderId, $query = '')
     {
@@ -107,5 +107,24 @@ class JobRepository extends EntityRepository
         $job->setUpdateTime(new \DateTime());
 
         $this->getEntityManager()->flush();
+    }
+
+    /**
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    public function resetJobStatus()
+    {
+        /**
+         * @var Job[] $jobs
+         */
+        $jobs = $this->findBy(['status' => 'processing']);
+        foreach ($jobs as $key => $val) {
+            $val->setStatus('not_start');
+            if ($key%10 == 0) {
+                $this->_em->flush();
+            }
+        }
+
+        $this->_em->flush();
     }
 }

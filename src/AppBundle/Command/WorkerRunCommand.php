@@ -37,6 +37,8 @@ class WorkerRunCommand extends ContainerAwareCommand
      */
     private $io;
 
+    private $pid;
+
     /**
      * @var int 当前的爬虫id
      */
@@ -46,6 +48,7 @@ class WorkerRunCommand extends ContainerAwareCommand
     {
         $this->setName('worker:run');
         $this->addArgument('spiderName');
+        $this->pid = getmypid();
     }
     
     /**
@@ -61,6 +64,11 @@ class WorkerRunCommand extends ContainerAwareCommand
         $this->io = $io = new SymfonyStyle($input, $output);
 
         $this->spiderName = $input->getArgument('spiderName');
+
+        if (empty($this->spiderName)) {
+            throw new InvalidArgumentException('爬虫名称不能为空！');
+        }
+
         $spiderService      = $this->getContainer()->get('app.spider.service');
         $jobRepository      = $this->getDoctrine()->getRepository('AppBundle:Job');
         $documentRepository = $this->getDoctrine()->getRepository('AppBundle:Document');
@@ -69,6 +77,12 @@ class WorkerRunCommand extends ContainerAwareCommand
         
         $spider = $spiderRepository->findOneBy(['name' => $this->spiderName]);
         $spiderId = $spider->getId();
+
+        if (!$spiderId) {
+            throw new InvalidArgumentException('爬虫不存在：' . $this->spiderName);
+        }
+
+        $io->note($this->pid . ' ' . '[作业进程] 作业进程已启动');
         
         while (true) {
             if ($redis->scard('spider:waiting-job') == 0) {
@@ -79,19 +93,12 @@ class WorkerRunCommand extends ContainerAwareCommand
                 $io->warning('[作业进程] 添加等待任务失败，可能没有足够的链接可以抓取了:' . $this->spiderName);
             }
 
-            $io->note('[作业进程] created new job');
-
-            if (!$spiderId) {
-                throw new InvalidArgumentException('argument:spiderId error!');
-            }
-
-
             do {
                 $jobId = $redis->spop('spider:waiting-job');
                 
                 if (!$jobId) {
                     $io->warning('[作业进程] 没有等待中的作业，5秒之后重试!');
-                    sleep(5);
+                    sleep(3);
                     continue;
                 }
                 
@@ -99,7 +106,7 @@ class WorkerRunCommand extends ContainerAwareCommand
                 
                 if ($isRunning) {
                     $io->warning('[作业进程] 任务:'. $jobId .' 正在运行中，跳到下一个!');
-                    sleep(5);
+                    sleep(1);
                     continue;
                 } else {
                     break;
@@ -114,26 +121,33 @@ class WorkerRunCommand extends ContainerAwareCommand
              */
 
             if (!$redisRet) {
-                throw new \Exception(sprintf('[作业进程] - 任务:%s 正在运行!', $jobId));
+                $this->io->error(sprintf('[作业进程] - 任务:%s 正在运行!', $jobId));
+                continue;
             }
 
-            $job = $jobRepository->find($jobId);
+            $job = $jobRepository->findOneBy(['id' => $jobId, 'status' => 'not_start']);
 
             if (!$job) {
-                throw new \Exception('[作业进程] 任务不存在: ' . $jobId);
+                $this->io->error('[作业进程] 任务不存在: ' . $jobId);
+                continue;
             }
 
-            $jobRepository->updateJobStatus($job, "not_start");
+            //$jobRepository->updateJobStatus($job, "processing");
+            $this->io->note($this->pid . ' ' . "[作业进程] 设置任务{$jobId}为运行中状态");
 
             /**
              * 任务已经有了对应的文档, 避免并发异常
              */
             if ($documentRepository->getDocumentByLink($job->getLink())) {
+                $this->io->success(sprintf('[作业进程] 任务%s已经被处理，', $job->getLink()));
                 $spiderService->finishJob($jobId);
-                return;
+                continue;
             }
 
             list($links, $documentResource) = $this->crawl($job);
+
+            // 抓取完毕是，设置为已完成。
+            $spiderService->finishJob($job->getId());
 
             // push link job to redis queue
             if ($links) {
@@ -151,7 +165,6 @@ class WorkerRunCommand extends ContainerAwareCommand
                 $spiderService->pushRedisJob($redisJobs);
             }
 
-            // push document to redis queue
             if ($documentResource) {
                 $document = $documentRepository->findOneBy(['title' => $documentResource['title']]);
 
@@ -159,7 +172,8 @@ class WorkerRunCommand extends ContainerAwareCommand
                  * 已经存在相同的文档
                  */
                 if ($document) {
-                    $spiderService->finishJob($jobId);
+                    $this->io->success(sprintf('[作业进程] 存在相同的文档，新链接:%s，原链接:%s', $job->getLink(), $document->getLink()));
+                    continue;
                 }
 
                 $this->io->success(sprintf('[作业进程] 在该页发现新的文档:%s', $job->getLink()));
@@ -179,13 +193,16 @@ class WorkerRunCommand extends ContainerAwareCommand
     protected function crawl(Job $job)
     {
         $spiderRepository = $this->getDoctrine()->getRepository('AppBundle:Spider');
+        $jobRepository = $this->getDoctrine()->getRepository('AppBundle:Job');
         $spider = $spiderRepository->find($job->getSpiderId());
         $spiderService = $this->getContainer()->get('app.spider.service');
         
-        if ($job->getStatus() !== 1) {
-            throw new \Exception('[作业进程] ' . $job->getId() . '没有启动');
+        if ($job->getStatus() !== "not_start") {
+            $this->io->error('[作业进程] ' . $job->getId() . '已经启动或者完成');
+            return [null, null];
         }
 
+        $jobRepository->updateJobStatus($job, "processing");
         $this->io->note('[作业进程] 开始抓取: ' . $job->getLink());
         
         $linkRule = [
@@ -214,7 +231,13 @@ class WorkerRunCommand extends ContainerAwareCommand
                 ]
             ]);
         } catch (ClientException $exception) {
-            $this->io->error($exception->getMessage());
+            $code = $exception->getCode();
+            if ($code == 404) {
+                $this->io->error('链接不存在：' . $job->getLink());
+            } else {
+                $this->io->error($exception->getCode());
+            }
+
             return [null, null];
         }
 
@@ -238,11 +261,19 @@ class WorkerRunCommand extends ContainerAwareCommand
 
             // 合格的链接
             if ($link) {
+
+                // https://www...
                 if (preg_match("#^http(s)?://.*?{$spider->getDomain()}#", $link)) {
                     $links[] = $link;
-                }
 
-                if (strpos($link, '/') === 0) {
+                // //www
+                } else if (strpos($link, '//') === 0) {
+                    $urlData = parse_url($spider->getSite());
+                    $links[] = sprintf('%s:%s', $urlData['scheme'], $link);
+
+
+                // /index.php?...
+                } else if (strpos($link, '/') === 0) {
                     $urlData = parse_url($spider->getSite());
                     $links[] = sprintf('%s://%s%s', $urlData['scheme'], $urlData['host'], $link);
                 }
