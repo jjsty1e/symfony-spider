@@ -7,19 +7,19 @@
     "documentRule": {
       "title":  {
         "type": "text",
-        "rule": "h1"
+        "rule": "h1.QuestionHeader-title"
       },
       "meta": {
-        "type": "text",
-        "rule": ".meta"
+        "type": "href",
+        "rule": ".UserLink-link"
       },
       "desc": {
         "type": "text",
-        "rule": ".desc"
+        "rule": ".QuestionHeader-detail span.RichText.ztext"
       },
       "content": {
         "type": "html",
-        "rule": ".content"
+        "rule": ".QuestionAnswer-content .RichContent-inner"
       }
     }
   }
