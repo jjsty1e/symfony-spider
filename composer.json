@@ -23,7 +23,7 @@
         "guzzlehttp/guzzle": "^6.2",
         "incenteev/composer-parameter-handler": "~2.0",
         "jaeger/querylist": "^3.2",
-        "predis/predis": "^1.1",
+        "predis/predis": "v1.1.1",
         "sensio/distribution-bundle": "~4.0",
         "sensio/framework-extra-bundle": "^3.0.2",
         "snc/redis-bundle": "^2.0",

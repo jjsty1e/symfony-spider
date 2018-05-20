@@ -91,7 +91,7 @@ php app/console spider:run SPIDER_NAME --workerCount=4
 or with debug
 
 ```
-php app/console app/console spider:run SPIDER_NAME --workerCount=4 --debug
+php app/console spider:run SPIDER_NAME --workerCount=4 --debug
 ```
 
 > - workerCount: 启动的进程数量，默认为1
