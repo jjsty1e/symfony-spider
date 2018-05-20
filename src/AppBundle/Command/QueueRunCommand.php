@@ -97,25 +97,17 @@ class QueueRunCommand extends ContainerAwareCommand
             $redisJob = $redis->lpop('spider:job-queue');
 
             if (!$redisJob) {
-                sleep(5);
+                $this->io->success('[任务队列] 当前没有任务任务！');
+                sleep(3);
                 continue;
             }
 
             $jobData = json_decode($redisJob, true);
 
             $spiderId = $jobData['spiderId'];
-            $link = $jobData['link'];
-
-            $job = $jobRepository->findOneBy(['spiderId' => $spiderId, 'link' => $link]);
-
-            if ($job) {
-                continue;
-            }
 
             $job = $jobRepository->createJob($jobData['spiderId'], $jobData['link']);
             $spiderService->refreshRedisWaitingJobs($spiderId, $job->getId());
-
-            sleep(1);
         }
     }
 
