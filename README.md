@@ -7,9 +7,6 @@
 ## 依赖服务
 
 - php >= 5.6
-- mysql = 5.6
-- redis
-
 
 ## 安装
 
@@ -19,22 +16,24 @@ cd spider
 composer install
 ```
 
-`composer  install`命令的最后，根据提示输入数据库配置以及redis dsn
+`composer  install`命令的最后，根据提示输入数据库配置（数据库名称现在给出，但是不需要现在建数据库，下面的命令会帮助自动创建数据库）
+以及redis dsn(例如：redis://pass@localhost)。
 
-## 创建数据库(已创建可略过)
+## 创建数据库
 
-```
+```bash
 php app/console doctrine:database:create
 ```
 
 ## 创建表结构
  
-```
+```bash
 php app/console doctrine:schema:update --force --dump-sql
 ```
 
 ## 创建一个爬虫
-```
+
+```bash
 php app/console spider:create
 ```
 
@@ -46,31 +45,31 @@ vim app/config/rules.json
 
 **规则介绍：**
 
-目前只能爬取四个字段，可扩展字段配置正在开发中
+目前只能爬取四个字段，下面以爬取知乎为例：
 
-```
+```json
 {
-  "default" : {  # 刚才创建的爬虫名字
-    "linkRule": {    # 是否只抓取包含以下ruleurl
-      "status": false,    # 是否启用linkRule
-      "rule": ""    # url所需要包含的字符串
+  "sf-spider" : {
+    "linkRule": {
+      "status": false,
+      "rule": ""
     },
     "documentRule": {
-      "title":  {    # 标题
-        "type": "text", # 类型 可选 text(纯文本)， html(富文本)， href,title等元素的属性
-        "rule": "h1" # css选择器
+      "title":  {
+        "type": "text",
+        "rule": "h1.QuestionHeader-title"
       },
       "meta": {
-        "type": "text", # ...
-        "rule": ".meta" # ...
+        "type": "href",
+        "rule": ".UserLink-link"
       },
       "desc": {
-        "type": "text", # ...
-        "rule": ".desc" # ...
+        "type": "text",
+        "rule": ".QuestionHeader-detail span.RichText.ztext"
       },
       "content": {
-        "type": "html", # ...
-        "rule": ".content" # ...
+        "type": "html",
+        "rule": "div.RichContent .RichContent-inner"
       }
     }
   }
@@ -78,7 +77,10 @@ vim app/config/rules.json
 ```
 
 ## 运行爬虫
-```
+
+`SPIDER_NAME`为你创建的爬虫名称，例如我的为“sf-spider”。
+
+```bash
 php app/console spider:run --spiderName=SPIDER_NAME --workerCount=4 
 ```
 
@@ -88,7 +90,7 @@ or
 php app/console spider:run SPIDER_NAME --workerCount=4 
 ```
 
-or with debug
+or 开启日志输出
 
 ```
 php app/console spider:run SPIDER_NAME --workerCount=4 --debug
@@ -97,20 +99,17 @@ php app/console spider:run SPIDER_NAME --workerCount=4 --debug
 > - workerCount: 启动的进程数量，默认为1
 > - spiderName: 爬虫名称，默认"default"
 
-
 -----
 
 ## 执行过程
 
 ```
+               |  -- job进程<抓取网页内容>
+master进程 -----| -- job进程<抓取网页内容>
+               |  -- job进程<抓取网页内容>
 
 
-               |  -- job进程
-master进程 -----| -- job进程
-               |  -- job进程
-
-
-任务队列 ----| -- 文档任务，主要是进行文档的入库操作
-            | -- job任务，控制job的状态，获取待爬的job
+任务队列 ----| -- 文档任务，分析网页，进行文档的入库操作
+            | -- job任务，控制job的状态，给job进程分配job
 ```
 
