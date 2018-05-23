@@ -17,10 +17,7 @@ framework:
         strict_requirements: ~
     form: ~
     csrf_protection: ~
-    validation: { enable_annotations: true }
     #serializer: { enable_annotations: true }
-    templating:
-        engines: ['twig']
     default_locale: '%locale%'
     trusted_hosts: ~
     trusted_proxies: ~
@@ -29,11 +26,6 @@ framework:
         handler_id: ~
     fragments: ~
     http_method_override: true
-
-# Twig Configuration
-twig:
-    debug: '%kernel.debug%'
-    strict_variables: '%kernel.debug%'
 
 # Doctrine Configuration
 doctrine:
@@ -56,14 +48,6 @@ doctrine:
         auto_generate_proxy_classes: '%kernel.debug%'
         naming_strategy: doctrine.orm.naming_strategy.underscore
         auto_mapping: true
-
-# Swiftmailer Configuration
-swiftmailer:
-    transport: smtp
-    host: 127.0.0.1
-    username: null
-    password: null
-    spool: { type: memory }
 
 snc_redis:
     clients:
